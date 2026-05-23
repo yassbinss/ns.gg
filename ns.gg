@@ -1,0 +1,1009 @@
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local Lighting = game:GetService("Lighting")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+local Mouse = LocalPlayer:GetMouse()
+
+----------------------------------------------------------------
+-- [Key System] UI and Logic
+----------------------------------------------------------------
+local CorrectKey = "f7a8b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9"
+local DiscordLink = "https://discord.gg/wJHq4bEGKa"
+local KeyVerified = false
+
+local KeyGui = Instance.new("ScreenGui", LocalPlayer.PlayerGui)
+KeyGui.Name = "ns.gg_KeySystem"
+
+local KeyMain = Instance.new("Frame", KeyGui)
+KeyMain.Size = UDim2.new(0, 400, 0, 250)
+KeyMain.Position = UDim2.new(0.5, -200, 0.5, -125)
+KeyMain.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+KeyMain.BorderSizePixel = 0
+local KKeyStroke = Instance.new("UIStroke", KeyMain)
+KKeyStroke.Color = Color3.fromRGB(170, 85, 255)
+KKeyStroke.Thickness = 2
+
+local KeyTitle = Instance.new("TextLabel", KeyMain)
+KeyTitle.Size = UDim2.new(1, 0, 0, 40)
+KeyTitle.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+KeyTitle.Text = "ns.gg | KEY SYSTEM"
+KeyTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
+KeyTitle.Font = Enum.Font.GothamBold
+KeyTitle.TextSize = 16
+
+local KeyInput = Instance.new("TextBox", KeyMain)
+KeyInput.Size = UDim2.new(0.8, 0, 0, 40)
+KeyInput.Position = UDim2.new(0.1, 0, 0.3, 0)
+KeyInput.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+KeyInput.Text = ""
+KeyInput.PlaceholderText = "Enter Key Here..."
+KeyInput.TextColor3 = Color3.fromRGB(255, 255, 255)
+KeyInput.Font = Enum.Font.Code
+KeyInput.TextSize = 14
+Instance.new("UIStroke", KeyInput).Color = Color3.fromRGB(50, 50, 50)
+
+local VerifyBtn = Instance.new("TextButton", KeyMain)
+VerifyBtn.Size = UDim2.new(0.8, 0, 0, 40)
+VerifyBtn.Position = UDim2.new(0.1, 0, 0.55, 0)
+VerifyBtn.BackgroundColor3 = Color3.fromRGB(170, 85, 255)
+VerifyBtn.Text = "VERIFY KEY"
+VerifyBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+VerifyBtn.Font = Enum.Font.GothamBold
+VerifyBtn.TextSize = 14
+
+local DiscordBtn = Instance.new("TextButton", KeyMain)
+DiscordBtn.Size = UDim2.new(0.8, 0, 0, 30)
+DiscordBtn.Position = UDim2.new(0.1, 0, 0.8, 0)
+DiscordBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+DiscordBtn.Text = "COPY DISCORD LINK"
+DiscordBtn.TextColor3 = Color3.fromRGB(180, 180, 180)
+DiscordBtn.Font = Enum.Font.Gotham
+DiscordBtn.TextSize = 12
+DiscordBtn.MouseButton1Click:Connect(function() 
+    setclipboard(DiscordLink) 
+    DiscordBtn.Text = "COPIED!" 
+    task.wait(1) 
+    DiscordBtn.Text = "COPY DISCORD LINK" 
+end)
+
+----------------------------------------------------------------
+-- [1] UI Clean Initialization
+----------------------------------------------------------------
+local uiName = "ns.gg_Universal_V9_Ultimate"
+for _, v in pairs(LocalPlayer:WaitForChild("PlayerGui"):GetChildren()) do
+    if v.Name == uiName then v:Destroy() end
+end
+
+local IsMobile = UserInputService.TouchEnabled 
+local ScreenGui = Instance.new("ScreenGui", LocalPlayer.PlayerGui)
+ScreenGui.Name = uiName
+ScreenGui.ResetOnSpawn = false
+ScreenGui.IgnoreGuiInset = true
+ScreenGui.Enabled = false
+
+----------------------------------------------------------------
+-- [2] Configurations Data Map
+----------------------------------------------------------------
+local Config = {
+    aimOn = false, silentOn = false, silentSize = 20,
+    aimPart = "Head", wallOn = true, teamOn = true, 
+    espOn = true, showFov = false,
+    aimSmooth = 10, fovRadius = 150, aimDelay = 0.1,
+    
+    triggerOn = false, triggerDelay = 0.02, 
+    
+    espName = true, espDist = true, espBox = true, espTracer = false,
+    wsOn = false, walkSpeedVal = 16, flyOn = false, flySpeedVal = 50, noclipOn = false,
+    worldR = 255, worldG = 255, worldB = 255,
+    fogEnd = 10000, brightnessVal = 2, clockTimeVal = 12,
+    uiColor = Color3.fromRGB(170, 85, 255), espColor = Color3.fromRGB(255, 255, 255), fovColor = Color3.fromRGB(170, 85, 255),
+    gunColor = Color3.fromRGB(170, 85, 255),
+    selectedFont = Enum.Font.Code,
+    menuKey = Enum.KeyCode.Insert, aimKey = Enum.KeyCode.V, espKey = Enum.KeyCode.B,
+    
+    infAmmo = true,
+    antiRecoil = false,
+    rapidFire = false,
+    instantReload = false,
+    antiSpread = false,
+    alwaysAuto = false,
+    noSpray = false,
+   
+    purplishGun = false,
+    transparentGun = false
+}
+
+local lastTarget, lockStartTime = nil, 0
+local lastTriggerShotTime = 0 
+local ScriptRunning = true
+
+local vu137 = { Recoil = {} }
+local DynamicElements = { Toggles = {}, Sliders = {}, Tabs = {}, MobileToggle = nil }
+
+local function UpdateUIColors(newColor)
+    for box, key in pairs(DynamicElements.Toggles) do
+        if Config[key] then box.BackgroundColor3 = newColor end
+    end
+    for _, fill in ipairs(DynamicElements.Sliders) do
+        fill.BackgroundColor3 = newColor
+    end
+    for _, tabData in ipairs(DynamicElements.Tabs) do
+        tabData.Indicator.BackgroundColor3 = newColor
+    end
+    if DynamicElements.MobileToggle then
+        DynamicElements.MobileToggle.TextColor3 = newColor
+        local stroke = DynamicElements.MobileToggle:FindFirstChildOfClass("UIStroke")
+        if stroke then stroke.Color = newColor end
+    end
+end
+
+----------------------------------------------------------------
+-- [3] Core UI Framework Design
+----------------------------------------------------------------
+local Main = Instance.new("Frame", ScreenGui)
+Main.Size = UDim2.new(0, 520, 0, 460)
+Main.Position = UDim2.new(0.5, -260, 0.5, -230)
+Main.BackgroundColor3 = Color3.fromRGB(12, 12, 12)
+Main.BorderSizePixel = 0
+Main.Active = true
+Main.Draggable = true
+local MainStroke = Instance.new("UIStroke", Main)
+MainStroke.Color = Config.uiColor
+MainStroke.Thickness = 2
+
+local TopBar = Instance.new("Frame", Main)
+TopBar.Size = UDim2.new(1, 0, 0, 2)
+TopBar.BackgroundColor3 = Config.uiColor
+TopBar.BorderSizePixel = 0
+
+local TitleText = Instance.new("TextLabel", Main)
+TitleText.Size = UDim2.new(0, 200, 0, 30)
+TitleText.Position = UDim2.new(0, 15, 0, 8)
+TitleText.Text = "ns.gg"
+TitleText.TextColor3 = Color3.fromRGB(255, 255, 255)
+TitleText.Font = Enum.Font.Code
+TitleText.TextSize = 18
+TitleText.BackgroundTransparency = 1
+TitleText.TextXAlignment = Enum.TextXAlignment.Left
+
+local TabContainer = Instance.new("Frame", Main)
+TabContainer.Size = UDim2.new(0, 110, 1, -50)
+TabContainer.Position = UDim2.new(0, 15, 0, 40)
+TabContainer.BackgroundColor3 = Color3.fromRGB(16, 16, 16)
+TabContainer.BorderSizePixel = 0
+Instance.new("UIStroke", TabContainer).Color = Color3.fromRGB(25, 25, 25)
+
+local TabListLayout = Instance.new("UIListLayout", TabContainer)
+TabListLayout.FillDirection = Enum.FillDirection.Vertical
+TabListLayout.Padding = UDim.new(0, 2)
+
+local Container = Instance.new("Frame", Main)
+Container.Size = UDim2.new(1, -150, 1, -50)
+Container.Position = UDim2.new(0, 135, 0, 40)
+Container.BackgroundColor3 = Color3.fromRGB(16, 16, 16)
+Container.BorderSizePixel = 0
+Instance.new("UIStroke", Container).Color = Color3.fromRGB(25, 25, 25)
+
+if IsMobile then
+    local MobileToggle = Instance.new("TextButton", ScreenGui)
+    MobileToggle.Size = UDim2.new(0, 50, 0, 50)
+    MobileToggle.Position = UDim2.new(0.05, 0, 0.15, 0)
+    MobileToggle.BackgroundColor3 = Color3.fromRGB(16, 16, 16)
+    MobileToggle.Text = "ns"
+    MobileToggle.TextColor3 = Config.uiColor
+    MobileToggle.TextSize = 14
+    MobileToggle.Font = Enum.Font.Code
+    Instance.new("UICorner", MobileToggle).CornerRadius = UDim.new(1, 0)
+    local MTStroke = Instance.new("UIStroke", MobileToggle)
+    MTStroke.Color = Config.uiColor
+    
+    DynamicElements.MobileToggle = MobileToggle
+    
+    MobileToggle.MouseButton1Click:Connect(function()
+        Main.Visible = not Main.Visible
+    end)
+end
+
+local Pages = {}
+local function CreatePage(name)
+    local p = Instance.new("Frame", Container)
+    p.Size = UDim2.new(1, 0, 1, 0)
+    p.BackgroundTransparency = 1
+    p.Visible = false
+    Pages[name] = p
+    return p
+end
+
+local CombatPage = CreatePage("COMBAT")
+local VisualsPage = CreatePage("VISUALS")
+local MiscPage = CreatePage("MISC")
+local SettingsPage = CreatePage("SETTINGS")
+CombatPage.Visible = true
+
+----------------------------------------------------------------
+-- [Sub-Tab Dynamic Multi-Structure Builder Fixed]
+----------------------------------------------------------------
+local function CreateSubTabStructure(parentPage, subTabNames)
+    local SubTabHeader = Instance.new("Frame", parentPage)
+    SubTabHeader.Size = UDim2.new(1, 0, 0, 28)
+    SubTabHeader.BackgroundColor3 = Color3.fromRGB(14, 14, 14)
+    SubTabHeader.BorderSizePixel = 0
+    local SubHeaderStroke = Instance.new("UIStroke", SubTabHeader)
+    SubHeaderStroke.Color = Color3.fromRGB(25, 25, 25)
+    
+    local SubTabLayout = Instance.new("UIListLayout", SubTabHeader)
+    SubTabLayout.FillDirection = Enum.FillDirection.Horizontal
+    SubTabLayout.Padding = UDim.new(0, 1)
+    
+    local SubContentFrame = Instance.new("Frame", parentPage)
+    SubContentFrame.Size = UDim2.new(1, -16, 1, -40)
+    SubContentFrame.Position = UDim2.new(0, 8, 0, 36)
+    SubContentFrame.BackgroundTransparency = 1
+    
+    local subContainers = {}
+    local subButtons = {}
+    
+    for i, name in ipairs(subTabNames) do
+        local sc = Instance.new("ScrollingFrame", SubContentFrame)
+        sc.Size = UDim2.new(1, 0, 1, 0)
+        sc.BackgroundTransparency = 1
+        sc.Visible = (i == 1)
+        sc.ScrollBarThickness = 2
+        sc.CanvasSize = UDim2.new(0, 0, 0, 0)
+        sc.AutomaticCanvasSize = Enum.AutomaticSize.Y
+        sc.Selectable = true
+        sc.Active = true
+        
+        local scList = Instance.new("UIListLayout", sc)
+        scList.Padding = UDim.new(0, 6)
+        subContainers[name] = sc
+        
+        local btn = Instance.new("TextButton", SubTabHeader)
+        btn.Size = UDim2.new(0, math.floor(350 / #subTabNames), 1, 0)
+        btn.BackgroundColor3 = (i == 1) and Color3.fromRGB(22, 22, 22) or Color3.fromRGB(16, 16, 16)
+        btn.TextColor3 = (i == 1) and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(140, 140, 140)
+        btn.Font = Enum.Font.Code
+        btn.Text = name
+        btn.TextSize = 11
+        btn.BorderSizePixel = 0
+        subButtons[name] = btn
+        
+        btn.MouseButton1Click:Connect(function()
+            for _, frame in pairs(subContainers) do frame.Visible = false end
+            for _, sBtn in pairs(subButtons) do
+                sBtn.BackgroundColor3 = Color3.fromRGB(16, 16, 16)
+                sBtn.TextColor3 = Color3.fromRGB(140, 140, 140)
+            end
+            sc.Visible = true
+            btn.BackgroundColor3 = Color3.fromRGB(22, 22, 22)
+            btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        end)
+    end
+    return subContainers
+end
+
+local CombatSubs = CreateSubTabStructure(CombatPage, {"AIMBOT", "SILENT AIM", "TRIGGERBOT"})
+local VisualsSubs = CreateSubTabStructure(VisualsPage, {"PLAYER ESP", "WORLD SETTINGS", "SKIN CHANGER"})
+local MiscSubs = CreateSubTabStructure(MiscPage, {"MOVEMENT", "GUN MODS"})
+local SettingsSubs = CreateSubTabStructure(SettingsPage, {"UI DESIGN", "CONTROLS"})
+
+local function CreateTab(t, p)
+    local b = Instance.new("TextButton", TabContainer)
+    b.Size = UDim2.new(1, 0, 0, 32)
+    b.BackgroundColor3 = Color3.fromRGB(16, 16, 16)
+    b.TextColor3 = Color3.fromRGB(130, 130, 130)
+    b.Font = Enum.Font.Code
+    b.Text = "  " .. t
+    b.BorderSizePixel = 0
+    b.TextSize = 13
+    b.TextXAlignment = Enum.TextXAlignment.Left
+    local Indicator = Instance.new("Frame", b)
+    Indicator.Size = UDim2.new(0, 3, 1, 0)
+    Indicator.Position = UDim2.new(0, 0, 0, 0)
+    Indicator.BackgroundColor3 = Config.uiColor
+    Indicator.BorderSizePixel = 0
+    Indicator.Visible = false
+    
+    table.insert(DynamicElements.Tabs, { Button = b, Indicator = Indicator })
+    
+    b.MouseButton1Click:Connect(function()
+        for _, v in pairs(Pages) do v.Visible = false end
+        for _, v in pairs(TabContainer:GetChildren()) do 
+            if v:IsA("TextButton") then 
+                v.TextColor3 = Color3.fromRGB(130, 130, 130) 
+                if v:FindFirstChild("Frame") then v:FindFirstChild("Frame").Visible = false end 
+            end 
+        end
+        p.Visible = true
+        b.TextColor3 = Color3.fromRGB(255, 255, 255)
+        Indicator.Visible = true
+    end)
+    if t == "COMBAT" then 
+        b.TextColor3 = Color3.fromRGB(255, 255, 255)
+        Indicator.Visible = true 
+    end
+end
+
+CreateTab("COMBAT", CombatPage)
+CreateTab("VISUALS", VisualsPage)
+CreateTab("MISC", MiscPage)
+CreateTab("SETTINGS", SettingsPage)
+
+----------------------------------------------------------------
+-- [4] Clean Widget Builders Utility
+----------------------------------------------------------------
+local function CreateSection(t, p)
+    local section = Instance.new("Frame", p)
+    section.Size = UDim2.new(1, 0, 0, 26)
+    section.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+    section.BorderSizePixel = 0
+    section.ClipsDescendants = true
+    local btn = Instance.new("TextButton", section)
+    btn.Size = UDim2.new(1, 0, 0, 26)
+    btn.BackgroundColor3 = Color3.fromRGB(22, 22, 22)
+    btn.Text = " > " .. t
+    btn.TextColor3 = Color3.fromRGB(200, 200, 200)
+    btn.Font = Enum.Font.Code
+    btn.TextSize = 11
+    btn.TextXAlignment = Enum.TextXAlignment.Left
+    btn.BorderSizePixel = 0
+    local content = Instance.new("Frame", section)
+    content.Size = UDim2.new(1, 0, 0, 0)
+    content.Position = UDim2.new(0, 0, 0, 26)
+    content.BackgroundTransparency = 1
+    content.Visible = false
+    local list = Instance.new("UIListLayout", content)
+    list.Padding = UDim.new(0, 5)
+    list.HorizontalAlignment = Enum.HorizontalAlignment.Center
+    btn.MouseButton1Click:Connect(function()
+        content.Visible = not content.Visible
+        if content.Visible then
+            local h = list.AbsoluteContentSize.Y + 8
+            content.Size = UDim2.new(1, 0, 0, h)
+            section.Size = UDim2.new(1, 0, 0, h + 30)
+        else
+            section.Size = UDim2.new(1, 0, 0, 26)
+        end
+    end)
+    return content
+end
+
+local function CreateToggle(t, p, k)
+    local b = Instance.new("TextButton", p)
+    b.Size = UDim2.new(1, 0, 0, 24)
+    b.BackgroundColor3 = Color3.fromRGB(16, 16, 16)
+    b.TextColor3 = Color3.fromRGB(160, 160, 160)
+    b.Font = Config.selectedFont
+    b.BorderSizePixel = 0
+    b.TextSize = 12
+    b.TextXAlignment = Enum.TextXAlignment.Left
+    b.Active = true
+    
+    local box = Instance.new("Frame", b)
+    box.Size = UDim2.new(0, 12, 0, 12)
+    box.Position = UDim2.new(1, -16, 0.5, -6)
+    box.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+    box.BorderSizePixel = 0
+    local boxStroke = Instance.new("UIStroke", box)
+    boxStroke.Color = Color3.fromRGB(45, 45, 45)
+    boxStroke.Thickness = 1
+    
+    DynamicElements.Toggles[box] = k
+    
+    local function up() 
+        b.Text = "  " .. t
+        if Config[k] then 
+            box.BackgroundColor3 = Config.uiColor
+            b.TextColor3 = Color3.fromRGB(255, 255, 255)
+        else 
+            box.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+            b.TextColor3 = Color3.fromRGB(160, 160, 160) 
+        end
+    end
+    up()
+    b.MouseButton1Click:Connect(function() Config[k] = not Config[k]; up() end)
+end
+
+local function CreateSlider(t, p, min, max, k, isFloat)
+    local f = Instance.new("Frame", p)
+    f.Size = UDim2.new(1, 0, 0, 38)
+    f.BackgroundTransparency = 1
+    f.Active = true
+    
+    local l = Instance.new("TextLabel", f)
+    l.Size = UDim2.new(1, 0, 0, 18)
+    l.Text = "  " .. t .. ": " .. Config[k]
+    l.TextColor3 = Color3.fromRGB(180, 180, 180)
+    l.BackgroundTransparency = 1
+    l.Font = Config.selectedFont
+    l.TextXAlignment = Enum.TextXAlignment.Left
+    l.TextSize = 11
+    
+    local bg = Instance.new("Frame", f)
+    bg.Size = UDim2.new(1, -4, 0, 4)
+    bg.Position = UDim2.new(0, 2, 0, 24)
+    bg.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+    bg.BorderSizePixel = 0
+    
+    local fill = Instance.new("Frame", bg)
+    fill.Size = UDim2.new((Config[k]-min)/(max-min), 0, 1, 0)
+    fill.BackgroundColor3 = Config.uiColor
+    fill.BorderSizePixel = 0
+    
+    table.insert(DynamicElements.Sliders, fill)
+    
+    local dragging = false
+    local function Update(input)
+        local pos = math.clamp((input.Position.X - bg.AbsolutePosition.X) / bg.AbsoluteSize.X, 0, 1)
+        local val = min + (max - min) * pos
+        if isFloat then val = math.floor(val * 100) / 100 else val = math.floor(val) end 
+        Config[k] = val
+        fill.Size = UDim2.new(pos, 0, 1, 0)
+        l.Text = "  " .. t .. ": " .. val
+    end
+    
+    f.InputBegan:Connect(function(input) 
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then 
+            dragging = true; Update(input) 
+        end 
+    end)
+    UserInputService.InputChanged:Connect(function(input) 
+        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then 
+            Update(input) 
+        end 
+    end)
+    UserInputService.InputEnded:Connect(function(input) 
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then 
+            dragging = false 
+        end 
+    end)
+end
+
+local function CreateColorPicker(t, p, k)
+    local f = Instance.new("Frame", p)
+    f.Size = UDim2.new(1, 0, 0, 40)
+    f.BackgroundTransparency = 1
+    f.Active = true
+    
+    local l = Instance.new("TextLabel", f)
+    l.Size = UDim2.new(1, 0, 0, 16)
+    l.Text = "  " .. t
+    l.TextColor3 = Color3.fromRGB(160, 160, 160)
+    l.Font = Config.selectedFont
+    l.TextSize = 11
+    l.TextXAlignment = Enum.TextXAlignment.Left
+    
+    local container = Instance.new("Frame", f)
+    container.Size = UDim2.new(1, 0, 0, 20)
+    container.Position = UDim2.new(0, 0, 0, 18)
+    container.BackgroundTransparency = 1
+    
+    local colors = {Color3.new(1,0,0), Color3.new(0,1,0), Color3.new(0,0,1), Color3.new(1,1,0), Color3.new(1,0,1), Color3.new(1,1,1), Color3.fromRGB(170, 85, 255), Color3.fromRGB(255, 127, 0)}
+    local grid = Instance.new("UIGridLayout", container)
+    grid.CellSize = UDim2.new(0, 18, 0, 18)
+    grid.CellPadding = UDim2.new(0, 4, 0, 4)
+    
+    for _, c in ipairs(colors) do
+        local b = Instance.new("TextButton", container)
+        b.BackgroundColor3 = c
+        b.Text = ""
+        b.BorderSizePixel = 0
+        b.MouseButton1Click:Connect(function() 
+            Config[k] = c 
+            if k == "uiColor" then 
+                TopBar.BackgroundColor3 = c 
+                MainStroke.Color = c 
+                UpdateUIColors(c)
+            end 
+        end)
+    end
+end
+
+----------------------------------------------------------------
+-- [5] Function Layout Routing & Distribution Map
+----------------------------------------------------------------
+
+-- MAIN TAB 1: COMBAT SUBS
+-- SUB-TAB: AIMBOT
+CreateToggle("ENABLE AIMBOT (LOCK)", CombatSubs["AIMBOT"], "aimOn")
+local tpPart = Instance.new("TextButton", CombatSubs["AIMBOT"])
+tpPart.Size = UDim2.new(1, 0, 0, 24)
+tpPart.BackgroundColor3 = Color3.fromRGB(16, 16, 16)
+tpPart.TextColor3 = Color3.fromRGB(200, 200, 200)
+tpPart.Font = Config.selectedFont
+tpPart.Text = "  TARGET: HEAD"
+tpPart.TextXAlignment = Enum.TextXAlignment.Left
+tpPart.BorderSizePixel = 0
+tpPart.MouseButton1Click:Connect(function() 
+    Config.aimPart = (Config.aimPart == "Head" and "HumanoidRootPart" or "Head")
+    tpPart.Text = "  TARGET: " .. (Config.aimPart == "Head" and "HEAD" or "BODY") 
+end)
+CreateToggle("WALL CHECK", CombatSubs["AIMBOT"], "wallOn")
+CreateToggle("TEAM CHECK", CombatSubs["AIMBOT"], "teamOn")
+CreateToggle("SHOW FOV CIRCLE", CombatSubs["AIMBOT"], "showFov")
+CreateSlider("SMOOTH POWER", CombatSubs["AIMBOT"], 1, 50, "aimSmooth")
+CreateSlider("FOV RADIUS SIZE", CombatSubs["AIMBOT"], 10, 500, "fovRadius")
+CreateSlider("LOCK REACTION SPEED", CombatSubs["AIMBOT"], 0, 1.5, "aimDelay", true)
+local AimColorSec = CreateSection("FOV DRAW COLORS", CombatSubs["AIMBOT"])
+CreateColorPicker("FOV CIRCLE COLOR", AimColorSec, "fovColor")
+
+-- SUB-TAB: SILENT AIM
+CreateToggle("ENABLE SILENT AIM (HITBOX)", CombatSubs["SILENT AIM"], "silentOn")
+CreateSlider("HITBOX MULTIPLIER SIZE", CombatSubs["SILENT AIM"], 2, 50, "silentSize")
+
+-- SUB-TAB: TRIGGERBOT
+CreateToggle("ENABLE AUTOMATIC TRIGGER", CombatSubs["TRIGGERBOT"], "triggerOn")
+CreateSlider("TRIGGER SHOT DELAY", CombatSubs["TRIGGERBOT"], 0, 0.50, "triggerDelay", true)
+
+
+-- MAIN TAB 2: VISUALS SUBS
+-- SUB-TAB: PLAYER ESP
+CreateToggle("MASTER PLAYER ESP", VisualsSubs["PLAYER ESP"], "espOn")
+CreateToggle("DRAW 2D BOXES", VisualsSubs["PLAYER ESP"], "espBox")
+CreateToggle("DRAW SNAP TRACERS", VisualsSubs["PLAYER ESP"], "espTracer")
+CreateToggle("SHOW TARGET NAMES", VisualsSubs["PLAYER ESP"], "espName")
+CreateToggle("SHOW DISTANCE METERS", VisualsSubs["PLAYER ESP"], "espDist")
+local EspColorSec = CreateSection("ESP RENDERING COLORS", VisualsSubs["PLAYER ESP"])
+CreateColorPicker("ESP COLOR TARGET", EspColorSec, "espColor")
+
+-- SUB-TAB: WORLD SETTINGS
+CreateSlider("LIGHTING BRIGHTNESS", VisualsSubs["WORLD SETTINGS"], 0, 10, "brightnessVal", true)
+CreateSlider("WORLD TIME CLOCK", VisualsSubs["WORLD SETTINGS"], 0, 24, "clockTimeVal")
+CreateSlider("FOG CLIP DISTANCE", VisualsSubs["WORLD SETTINGS"], 100, 50000, "fogEnd")
+local AmbRGB = CreateSection("AMBIENT RGB MODIFIER", VisualsSubs["WORLD SETTINGS"])
+CreateSlider("AMBIENT RED CHANNEL", AmbRGB, 0, 255, "worldR")
+CreateSlider("AMBIENT GREEN CHANNEL", AmbRGB, 0, 255, "worldG")
+CreateSlider("AMBIENT BLUE CHANNEL", AmbRGB, 0, 255, "worldB")
+
+-- SUB-TAB: SKIN CHANGER
+CreateToggle("PURPLISH SKINS CHANGER", VisualsSubs["SKIN CHANGER"], "purplishGun")
+CreateToggle("TRANSPARENT VIEWMODEL ARMS", VisualsSubs["SKIN CHANGER"], "transparentGun")
+local SkinColorSec = CreateSection("VIEWMODEL PALETTES", VisualsSubs["SKIN CHANGER"])
+CreateColorPicker("GUN SKIN SOLID COLOR", SkinColorSec, "gunColor")
+
+
+-- MAIN TAB 3: MISC SUBS
+-- SUB-TAB: MOVEMENT
+CreateToggle("WALKSPEED MODIFIER", MiscSubs["MOVEMENT"], "wsOn")
+CreateSlider("WALKSPEED MAXIMUM VALUE", MiscSubs["MOVEMENT"], 16, 250, "walkSpeedVal")
+CreateToggle("FLY FLIGHT MODULE", MiscSubs["MOVEMENT"], "flyOn")
+CreateSlider("FLIGHT TRAVEL SPEED", MiscSubs["MOVEMENT"], 10, 500, "flySpeedVal")
+CreateToggle("NOCLIP WALLPASS THROUGH", MiscSubs["MOVEMENT"], "noclipOn")
+
+-- SUB-TAB: GUN MODS
+CreateToggle("INFINITE RESERVED AMMO", MiscSubs["GUN MODS"], "infAmmo")
+CreateToggle("ANTI WEAPONS RECOIL", MiscSubs["GUN MODS"], "antiRecoil")
+CreateToggle("MAXIMUM RAPID FIRE RATE", MiscSubs["GUN MODS"], "rapidFire")
+CreateToggle("INSTANT MAGAZINE RELOAD", MiscSubs["GUN MODS"], "instantReload")
+CreateToggle("ANTI BULLET SPREAD DISPERSION", MiscSubs["GUN MODS"], "antiSpread")
+CreateToggle("FORCE ALWAYS FULLY AUTOMATIC", MiscSubs["GUN MODS"], "alwaysAuto")
+CreateToggle("NO SPRAY BEAM REFILLING", MiscSubs["GUN MODS"], "noSpray")
+
+
+-- MAIN TAB 4: SETTINGS SUBS
+-- SUB-TAB: UI DESIGN
+local FontSection = CreateSection("INTERFACE FONTS", SettingsSubs["UI DESIGN"])
+local fonts = {Enum.Font.Code, Enum.Font.Gotham, Enum.Font.Roboto, Enum.Font.Ubuntu, Enum.Font.TitilliumWeb}
+local FontGrid = Instance.new("Frame", FontSection)
+FontGrid.Size = UDim2.new(1, 0, 0, 60)
+FontGrid.BackgroundTransparency = 1
+local FUIGrid = Instance.new("UIGridLayout", FontGrid)
+FUIGrid.CellSize = UDim2.new(0.31, 0, 0, 22)
+FUIGrid.CellPadding = UDim2.new(0.02, 0, 0, 4)
+for _, f in ipairs(fonts) do
+    local btn = Instance.new("TextButton", FontGrid)
+    btn.BackgroundColor3 = Color3.fromRGB(22, 22, 22)
+    btn.TextColor3 = Color3.new(1, 1, 1)
+    btn.Text = f.Name
+    btn.Font = f
+    btn.TextSize = 11
+    btn.BorderSizePixel = 0
+    btn.MouseButton1Click:Connect(function() 
+        Config.selectedFont = f
+        for _, v in pairs(ScreenGui:GetDescendants()) do 
+            if v:IsA("TextLabel") or v:IsA("TextButton") then v.Font = f end 
+        end 
+    end)
+end
+local ThemeSection = CreateSection("MENU INTERFACE THEMES", SettingsSubs["UI DESIGN"])
+CreateColorPicker("ACCENT THEME BASE COLOR", ThemeSection, "uiColor")
+
+-- SUB-TAB: CONTROLS
+local function CreateKeybind(t, p, k)
+    local b = Instance.new("TextButton", p)
+    b.Size = UDim2.new(1, 0, 0, 24)
+    b.BackgroundColor3 = Color3.fromRGB(16, 16, 16)
+    b.TextColor3 = Color3.fromRGB(160, 160, 160)
+    b.Font = Config.selectedFont
+    b.Text = "  " .. t .. ": " .. Config[k].Name
+    b.TextXAlignment = Enum.TextXAlignment.Left
+    b.BorderSizePixel = 0
+    b.MouseButton1Click:Connect(function() 
+        b.Text = "  " .. t .. ": ..."
+        local conn
+        conn = UserInputService.InputBegan:Connect(function(io) 
+            if io.UserInputType == Enum.UserInputType.Keyboard then 
+                Config[k] = io.KeyCode
+                b.Text = "  " .. t .. ": " .. io.KeyCode.Name
+                conn:Disconnect() 
+            end 
+        end) 
+    end)
+end
+CreateKeybind("GUI MENU TOGGLE KEY", SettingsSubs["CONTROLS"], "menuKey")
+CreateKeybind("AIMBOT SHORTCUT KEY", SettingsSubs["CONTROLS"], "aimKey")
+CreateKeybind("PLAYER ESP SWITCH KEY", SettingsSubs["CONTROLS"], "espKey")
+
+local UnloadBtn = Instance.new("TextButton", SettingsSubs["CONTROLS"])
+UnloadBtn.Size = UDim2.new(1, 0, 0, 28)
+UnloadBtn.BackgroundColor3 = Color3.fromRGB(120, 40, 40)
+UnloadBtn.Text = "UNLOAD GLOBAL SCRIPT ENVIRONMENT"
+UnloadBtn.TextColor3 = Color3.new(1, 1, 1)
+UnloadBtn.Font = Config.selectedFont
+UnloadBtn.TextSize = 11
+UnloadBtn.BorderSizePixel = 0
+local EspObjects = {}
+UnloadBtn.MouseButton1Click:Connect(function()
+    ScriptRunning = false
+    ScreenGui:Destroy()
+    if KeyGui then KeyGui:Destroy() end
+    for _, v in pairs(EspObjects) do
+        if v.Box then v.Box:Destroy() end
+        if v.Tracer then v.Tracer:Destroy() end
+        if v.NameLabel then v.NameLabel:Destroy() end
+    end
+end)
+
+----------------------------------------------------------------
+-- [6] Core Backend Synchronization & Execution Loops
+----------------------------------------------------------------
+local function IsVisible(part)
+    if not Config.wallOn then return true end
+    local params = RaycastParams.new()
+    params.FilterDescendantsInstances = {LocalPlayer.Character, Camera}
+    params.FilterType = Enum.RaycastFilterType.Exclude
+    local result = workspace:Raycast(Camera.CFrame.Position, part.Position - Camera.CFrame.Position, params)
+    return not result or result.Instance:IsDescendantOf(part.Parent)
+end
+
+local function RemoveEsp(p)
+    if EspObjects[p] then
+        if EspObjects[p].Box then EspObjects[p].Box:Destroy() end
+        if EspObjects[p].Tracer then EspObjects[p].Tracer:Destroy() end
+        if EspObjects[p].NameLabel then EspObjects[p].NameLabel:Destroy() end
+        EspObjects[p] = nil
+    end
+end
+
+local function CreateEsp(p)
+    local obj = { Box = Instance.new("Frame", ScreenGui), Tracer = Instance.new("Frame", ScreenGui), NameLabel = Instance.new("TextLabel", ScreenGui) }
+    obj.Box.BackgroundTransparency = 1
+    obj.Box.BorderSizePixel = 1
+    obj.Box.Visible = false
+    Instance.new("UIStroke", obj.Box).Thickness = 1
+    obj.Tracer.BorderSizePixel = 0
+    obj.Tracer.Visible = false
+    obj.Tracer.AnchorPoint = Vector2.new(0.5, 0.5)
+    obj.NameLabel.BackgroundTransparency = 1
+    obj.NameLabel.Visible = false
+    obj.NameLabel.TextSize = 11
+    obj.NameLabel.Font = Config.selectedFont
+    EspObjects[p] = obj
+end
+
+Players.PlayerRemoving:Connect(RemoveEsp)
+
+local FOVCircle = Instance.new("Frame", ScreenGui)
+FOVCircle.BackgroundTransparency = 0.8
+FOVCircle.BorderSizePixel = 0
+FOVCircle.Visible = false
+Instance.new("UICorner", FOVCircle).CornerRadius = UDim.new(1, 0)
+
+VerifyBtn.MouseButton1Click:Connect(function()
+    if KeyInput.Text == CorrectKey then 
+        KeyVerified = true
+        KeyGui:Destroy()
+        ScreenGui.Enabled = true
+    else 
+        VerifyBtn.Text = "INVALID KEY SYSTEM MATCH!"
+        VerifyBtn.BackgroundColor3 = Color3.fromRGB(150, 20, 20)
+        task.wait(1)
+        VerifyBtn.Text = "VERIFY KEY"
+        VerifyBtn.BackgroundColor3 = Color3.fromRGB(170, 85, 255) 
+    end
+end)
+
+-- GC Weapons Modification Registry Loop
+task.spawn(function()
+    while task.wait(0.2) do
+        if not KeyVerified or not ScriptRunning then continue end
+        pcall(function()
+            for _, v in pairs(getgc(true)) do
+                if type(v) == "table" then
+                    if Config.instantReload and (rawget(v, "reloadtime") or rawget(v, "m_reloadtime") or rawget(v, "ReloadTime")) then
+                        v.reloadtime = 0; v.m_reloadtime = 0; v.ReloadTime = 0
+                        if v.reloading then v.reloading = false end
+                    end
+                    if Config.rapidFire and (rawget(v, "firerate") or rawget(v, "FireRate")) then
+                        v.firerate = 0.001; v.FireRate = 0.001
+                    end
+                    if Config.antiSpread and (rawget(v, "spread") or rawget(v, "Spread")) then
+                        v.spread = 0; v.Spread = 0
+                    end
+                end
+            end
+        end)
+    end
+end)
+
+-- Memory Verification Sync Loop
+task.spawn(function()
+    while task.wait(0.01) do
+        if not KeyVerified or not ScriptRunning then continue end
+        
+        if Config.infAmmo then
+            pcall(function()
+                local v168 = game.ReplicatedStorage:FindFirstChild("wkspc")
+                if v168 and v168:FindFirstChild("CurrentCurse") then
+                    v168.CurrentCurse.Value = "Infinite Ammo"
+                end
+            end)
+            
+            pcall(function()
+                local v169 = game.ReplicatedStorage:FindFirstChild("Weapons")
+                if v169 then
+                    for _, v173 in pairs(v169:GetChildren()) do
+                        if v173:FindFirstChild("Ammo") and v173.Ammo:IsA("IntValue") then
+                            v173.Ammo.Value = 360
+                        end
+                    end
+                end
+            end)
+        end
+
+        pcall(function()
+            local weaponsFolder = game.ReplicatedStorage:FindFirstChild("Weapons")
+            if weaponsFolder then
+                for _, v143 in pairs(weaponsFolder:GetDescendants()) do
+                    if v143:IsA("NumberValue") and (v143.Name == "Recoil" or v143.Name == "RecoilControl") then
+                        if Config.antiRecoil then
+                            vu137.Recoil[v143] = vu137.Recoil[v143] or v143.Value
+                            v143.Value = 0
+                        else
+                            v143.Value = vu137.Recoil[v143] or v143.Value
+                        end
+                    end
+                end
+            end
+        end)
+    end
+end)
+
+-- Viewmodel & Weapons Environment Bypass Loop
+task.spawn(function()
+    while task.wait(0.01) do
+        if not KeyVerified or not ScriptRunning then continue end
+        
+        local wpFolder = ReplicatedStorage:FindFirstChild("Weapons")
+        if wpFolder then
+            for _, gun in pairs(wpFolder:GetChildren()) do
+                if Config.rapidFire and gun:FindFirstChild("FireRate") then gun.FireRate.Value = 0.01 end
+                if Config.instantReload and gun:FindFirstChild("ReloadTime") then gun.ReloadTime.Value = 0 end
+                if Config.antiSpread and gun:FindFirstChild("Spread") then gun.Spread.Value = 0 end
+                if Config.alwaysAuto then
+                    for _, val in pairs(gun:GetChildren()) do
+                        if val:IsA("BoolValue") and string.find(string.lower(val.Name), "auto") then val.Value = true end
+                    end
+                end
+            end
+        end
+
+        local arms = Camera:FindFirstChild("Arms")
+        if arms then
+            for _, part in pairs(arms:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    if Config.transparentGun then part.Transparency = 0.8 else part.Transparency = 0 end
+                    if Config.purplishGun then
+                        part.Color = Config.gunColor
+                        local sa = part:FindFirstChildOfClass("SurfaceAppearance")
+                        if sa then sa:Destroy() end
+                    end
+                end
+            end
+        end
+    end
+end)
+
+local mt = getrawmetatable(game)
+local oldNamecall = mt.__namecall
+setreadonly(mt, false)
+mt.__namecall = newcclosure(function(self, ...)
+    local args = {...}
+    local method = getnamecallmethod()
+    if method == "FireServer" and self.Name == "ShootEvent" and Config.noSpray then
+        args[1] = Camera.CFrame.Position + (Camera.CFrame.LookVector * 500)
+        return oldNamecall(self, unpack(args))
+    end
+    return oldNamecall(self, ...)
+end)
+setreadonly(mt, true)
+
+-- Main Frame Render Pipeline Core Handler
+RunService.RenderStepped:Connect(function()
+    if not KeyVerified or not ScriptRunning then return end
+    local char = LocalPlayer.Character
+    local hrp = char and char:FindFirstChild("HumanoidRootPart")
+    local hum = char and char:FindFirstChild("Humanoid")
+    local center = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+    
+    TopBar.BackgroundColor3 = Config.uiColor
+    MainStroke.Color = Config.uiColor
+
+    pcall(function()
+        Lighting.Brightness = Config.brightnessVal
+        Lighting.ClockTime = Config.clockTimeVal
+        Lighting.FogEnd = Config.fogEnd
+        local targetAmbient = Color3.fromRGB(Config.worldR, Config.worldG, Config.worldB)
+        Lighting.Ambient = targetAmbient
+        Lighting.OutdoorAmbient = targetAmbient
+    end)
+
+    if Config.triggerOn then
+        local currentTime = tick()
+        if currentTime - lastTriggerShotTime >= Config.triggerDelay then
+            local targetObject = Mouse.Target
+            if targetObject and targetObject.Parent then
+                local hitCharacter = targetObject.Parent
+                if hitCharacter:FindFirstChild("Head") and hitCharacter:FindFirstChild("Humanoid") then
+                    local targetPlayer = Players:GetPlayerFromCharacter(hitCharacter)
+                    if targetPlayer and targetPlayer ~= LocalPlayer and (not Config.teamOn or targetPlayer.Team ~= LocalPlayer.Team) then
+                        mouse1press()
+                        task.wait(0.01)
+                        mouse1release()
+                        lastTriggerShotTime = currentTime
+                    end
+                end
+            end
+        end
+    end
+
+    local currentBestTarget, minMag = nil, Config.fovRadius
+    for _, p in pairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer then
+            if not EspObjects[p] then CreateEsp(p) end
+            local obj = EspObjects[p]
+            local tChar = p.Character
+            local tHRP = tChar and tChar:FindFirstChild("HumanoidRootPart")
+            local tHum = tChar and tChar:FindFirstChild("Humanoid")
+            
+            if tChar and tHum and tHum.Health > 0 then
+                for _, partName in pairs({"Head", "HumanoidRootPart", "UpperTorso"}) do
+                    local pPart = tChar:FindFirstChild(partName)
+                    if pPart and pPart:IsA("BasePart") then
+                        if Config.silentOn and not (Config.teamOn and p.Team == LocalPlayer.Team) then
+                            pPart.Size = Vector3.new(Config.silentSize, Config.silentSize, Config.silentSize)
+                            pPart.Transparency = 1
+                            pPart.CanCollide = false
+                        else
+                            if partName == "Head" then pPart.Size = Vector3.new(1.2, 1.2, 1.2) else pPart.Size = Vector3.new(2, 2, 1) end
+                            pPart.Transparency = 0
+                            pPart.CanCollide = true
+                        end
+                        
+                        if Config.aimOn and partName == Config.aimPart and not (Config.teamOn and p.Team == LocalPlayer.Team) then
+                            pPart.Color = Config.uiColor
+                        else
+                            pPart.Color = Color3.fromRGB(255, 255, 255)
+                        end
+                    end
+                end
+            end
+            
+            if tChar and tHRP and tHum and tHum.Health > 0 and not (Config.teamOn and p.Team == LocalPlayer.Team) then
+                local pos, onScreen = Camera:WorldToViewportPoint(tHRP.Position)
+                if onScreen and Config.espOn then
+                    local top = Camera:WorldToViewportPoint(tHRP.Position + Vector3.new(0, 3, 0))
+                    local bottom = Camera:WorldToViewportPoint(tHRP.Position - Vector3.new(0, 3.5, 0))
+                    local boxHeight = math.abs(top.Y - bottom.Y)
+                    local boxWidth = boxHeight / 1.6
+                    if Config.espBox then
+                        obj.Box.Visible = true
+                        obj.Box.Size = UDim2.new(0, boxWidth, 0, boxHeight)
+                        obj.Box.Position = UDim2.new(0, pos.X - boxWidth / 2, 0, pos.Y - boxHeight / 2)
+                        if obj.Box:FindFirstChildOfClass("UIStroke") then
+                            obj.Box:FindFirstChildOfClass("UIStroke").Color = Config.espColor
+                        end
+                    else obj.Box.Visible = false end
+                    if Config.espTracer then
+                        obj.Tracer.Visible = true
+                        obj.Tracer.BackgroundColor3 = Config.espColor
+                        local start = Vector2.new(center.X, center.Y * 2)
+                        local endP = Vector2.new(pos.X, pos.Y)
+                        local mag = (endP - start).Magnitude
+                        obj.Tracer.Size = UDim2.new(0, mag, 0, 1)
+                        obj.Tracer.Position = UDim2.new(0, (start.X + endP.X) / 2, 0, (start.Y + endP.Y) / 2)
+                        obj.Tracer.Rotation = math.deg(math.atan2(endP.Y - start.Y, endP.X - start.X))
+                    else obj.Tracer.Visible = false end
+                    if Config.espName then
+                        obj.NameLabel.Visible = true
+                        obj.NameLabel.TextColor3 = Config.espColor
+                        obj.NameLabel.Font = Config.selectedFont
+                        obj.NameLabel.Text = p.Name .. (Config.espDist and " [" .. math.floor((tHRP.Position - hrp.Position).Magnitude) .. "m]" or "")
+                        obj.NameLabel.Position = UDim2.new(0, pos.X, 0, pos.Y - (boxHeight / 2) - 15)
+                    else obj.NameLabel.Visible = false end
+                    local mag = (Vector2.new(pos.X, pos.Y) - center).Magnitude
+                    if mag < minMag then 
+                        local tPart = tChar:FindFirstChild(Config.aimPart) 
+                        if tPart and IsVisible(tPart) then currentBestTarget, minMag = tChar, mag end 
+                    end
+                else 
+                    obj.Box.Visible = false
+                    obj.Tracer.Visible = false
+                    obj.NameLabel.Visible = false 
+                end
+            else 
+                if obj then 
+                    obj.Box.Visible = false
+                    obj.Tracer.Visible = false
+                    obj.NameLabel.Visible = false 
+                end 
+            end
+        end
+    end
+    
+    FOVCircle.Visible = Config.showFov
+    if Config.showFov then 
+        FOVCircle.Size = UDim2.new(0, Config.fovRadius * 2, 0, Config.fovRadius * 2)
+        FOVCircle.Position = UDim2.new(0, center.X - Config.fovRadius, 0, center.Y - Config.fovRadius)
+        FOVCircle.BackgroundColor3 = Config.fovColor 
+    end
+    
+    if Config.aimOn and currentBestTarget then
+        if currentBestTarget ~= lastTarget then 
+            lastTarget = currentBestTarget
+            lockStartTime = tick() 
+        end
+        if (tick() - lockStartTime) >= Config.aimDelay then
+            local aimPart = currentBestTarget:FindFirstChild(Config.aimPart)
+            if aimPart then Camera.CFrame = Camera.CFrame:Lerp(CFrame.new(Camera.CFrame.Position, aimPart.Position), 1 / Config.aimSmooth) end
+        end
+    else lastTarget = nil end
+
+    if hum then hum.WalkSpeed = Config.wsOn and Config.walkSpeedVal or 16 end
+
+    if Config.flyOn and hrp and hum then
+        hrp.Velocity = Vector3.new(0, 0, 0)
+        local moveDir = Vector3.new(0, 0, 0)
+        local camCF = Camera.CFrame
+        if IsMobile then
+            local joyMove = hum.MoveDirection
+            if joyMove.Magnitude > 0 then moveDir = (camCF.Rotation * CFrame.new(joyMove.X, 0, joyMove.Z)).Position end
+        else
+            if UserInputService:IsKeyDown(Enum.KeyCode.W) then moveDir = moveDir + camCF.LookVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.S) then moveDir = moveDir - camCF.LookVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.A) then moveDir = moveDir - camCF.RightVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.D) then moveDir = moveDir + camCF.RightVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.Space) then moveDir = moveDir + Vector3.new(0, 1, 0) end
+            if UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then moveDir = moveDir - Vector3.new(0, 1, 0) end
+        end
+        if moveDir.Magnitude > 0 then hrp.CFrame = hrp.CFrame + (moveDir.Unit * (Config.flySpeedVal / 15)) end
+    end
+end)
+
+RunService.Stepped:Connect(function() 
+    if ScriptRunning and KeyVerified and LocalPlayer.Character and Config.noclipOn then 
+        for _, v in pairs(LocalPlayer.Character:GetDescendants()) do 
+            if v:IsA("BasePart") then v.CanCollide = false end 
+        end 
+    end 
+end)
+
+UserInputService.InputBegan:Connect(function(io, gpe)
+    if not ScriptRunning or not KeyVerified or gpe then return end
+    if io.KeyCode == Config.menuKey then Main.Visible = not Main.Visible
+    elseif io.KeyCode == Config.aimKey then Config.aimOn = not Config.aimOn
+    elseif io.KeyCode == Config.espKey then Config.espOn = not Config.espOn end
+end)
