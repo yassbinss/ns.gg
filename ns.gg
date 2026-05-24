@@ -85,17 +85,17 @@ ScreenGui.IgnoreGuiInset = true
 ScreenGui.Enabled = false
 
 ----------------------------------------------------------------
--- [2] 설정값 데이터 맵 (Config)
+-- [2] 설정값 데이터 맵 (모든 치트 기능 기본값 OFF 리셋 완료)
 ----------------------------------------------------------------
 local Config = {
     aimOn = false, silentOn = false, silentSize = 20,
-    aimPart = "Head", wallOn = true, teamOn = true, 
-    espOn = true, showFov = false,
+    aimPart = "Head", wallOn = false, teamOn = false, 
+    espOn = false, showFov = false,
     aimSmooth = 10, fovRadius = 150, aimDelay = 0.1,
     
     triggerOn = false, triggerDelay = 0.02, 
     
-    espName = true, espDist = true, espBox = true, espTracer = false,
+    espName = false, espDist = false, espBox = false, espTracer = false,
     wsOn = false, walkSpeedVal = 16, flyOn = false, flySpeedVal = 50, noclipOn = false,
     worldR = 255, worldG = 255, worldB = 255,
     fogEnd = 10000, brightnessVal = 2, clockTimeVal = 12,
@@ -104,13 +104,13 @@ local Config = {
     selectedFont = Enum.Font.Code,
     menuKey = Enum.KeyCode.Insert, aimKey = Enum.KeyCode.V, espKey = Enum.KeyCode.B,
     
-    infAmmo = true,
-    antiRecoil = false,
-    rapidFire = false,
-    instantReload = false,
-    antiSpread = false,
-    alwaysAuto = false,
-    noSpray = false,
+    infAmmo = false,       -- 기본 비활성화 완료
+    antiRecoil = false,    -- 기본 비활성화 완료
+    rapidFire = false,     -- 기본 비활성화 완료
+    instantReload = false, -- 기본 비활성화 완료
+    antiSpread = false,    -- 기본 비활성화 완료
+    alwaysAuto = false,    -- 기본 비활성화 완료
+    noSpray = false,       -- 기본 비활성화 완료
    
     purplishGun = false,
     transparentGun = false
@@ -285,7 +285,6 @@ local function CreateSubTabStructure(parentPage, subTabNames)
     return subContainers
 end
 
--- 상시 분할 서브 탭 완벽 레이아웃 바인딩
 local CombatSubs = CreateSubTabStructure(CombatPage, {"AIMBOT", "SILENT AIM", "TRIGGERBOT"})
 local VisualsSubs = CreateSubTabStructure(VisualsPage, {"PLAYER ESP", "WORLD SETTINGS", "SKIN CHANGER"})
 local MiscSubs = CreateSubTabStructure(MiscPage, {"MOVEMENT", "GUN MODS"})
@@ -467,7 +466,6 @@ local function CreateSlider(t, p, min, max, k, isFloat)
     end)
 end
 
--- [수정 완료] 회색 구분선 및 백그라운드 텍스트 중첩 버그를 완벽 제거한 컬러피커 함수
 local function CreateColorPicker(t, p, k)
     local f = Instance.new("Frame", p)
     f.Size = UDim2.new(1, 0, 0, 40)
@@ -481,7 +479,7 @@ local function CreateColorPicker(t, p, k)
     l.Font = Config.selectedFont
     l.TextSize = 11
     l.TextXAlignment = Enum.TextXAlignment.Left
-    l.BackgroundTransparency = 1 -- 100% 투명화 처리하여 위쪽 회색 선의 발생 원인을 전면 소멸
+    l.BackgroundTransparency = 1 
     
     local container = Instance.new("Frame", f)
     container.Size = UDim2.new(1, 0, 0, 20)
@@ -590,7 +588,7 @@ CreateToggle("NO SPRAY BEAM REFILLING", MiscSubs["GUN MODS"], "noSpray")
 
 
 -- SETTINGS SUBS 라우팅
--- SUB-TAB: UI DESIGN (Enum.Font.Sarpanch 폰트 1개 추가 적용 완본)
+-- SUB-TAB: UI DESIGN
 local FontSection = CreateSection("INTERFACE FONTS", SettingsSubs["UI DESIGN"])
 local fonts = {Enum.Font.Code, Enum.Font.Gotham, Enum.Font.Roboto, Enum.Font.Ubuntu, Enum.Font.TitilliumWeb, Enum.Font.Sarpanch}
 local FontGrid = Instance.new("Frame", FontSection)
@@ -618,7 +616,7 @@ end
 local ThemeSection = CreateSection("MENU INTERFACE THEMES", SettingsSubs["UI DESIGN"])
 CreateColorPicker("ACCENT THEME BASE COLOR", ThemeSection, "uiColor")
 
--- SUB-TAB: CONTROLS (Aimbot, ESP Key UI 숨김 유지 처리 완료)
+-- SUB-TAB: CONTROLS
 local function CreateKeybind(t, p, k)
     local b = Instance.new("TextButton", p)
     b.Size = UDim2.new(1, 0, 0, 24)
@@ -664,7 +662,7 @@ UnloadBtn.MouseButton1Click:Connect(function()
 end)
 
 ----------------------------------------------------------------
--- [6] 백엔드 바이패스 제어 & 실시간 싱크 루프 (수정 누락 전면 금지)
+-- [6] 백엔드 바이패스 제어 & 실시간 싱크 루프 (기능 무수정 보존)
 ----------------------------------------------------------------
 local function IsVisible(part)
     if not Config.wallOn then return true end
@@ -837,7 +835,7 @@ mt.__namecall = newcclosure(function(self, ...)
 end)
 setreadonly(mt, true)
 
--- 메인 프레임 렌더 단계 코어 핸들러 (오타 버그 완벽 수정 완료)
+-- 메인 프레임 렌더 단계 코어 핸들러
 RunService.RenderStepped:Connect(function()
     if not KeyVerified or not ScriptRunning then return end
     local char = LocalPlayer.Character
